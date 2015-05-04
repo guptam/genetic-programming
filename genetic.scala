@@ -1,5 +1,14 @@
 import scala.math._
+import scala.io.Source
 
+/*********************
+ * # 3D Plot in R (spinning) 
+ * 
+ * library(rgl)
+ * d<- read.csv("D:\\workspace\\GeneticProgrammingScala\\Price.txt", sep=",", header = F)
+ * attach(d)
+ * plot3d(V1, V2, V3, col="red", size=3) * 
+ *********************/
 object genetic
 {
 
@@ -10,17 +19,17 @@ object genetic
 
 
   // Functions for GP we will use as of now
-  val addition    		= new FunctionWrapper((p: List[Any]) =>p(0).asInstanceOf[Int] + p(1).asInstanceOf[Int], 2, "+")
-  val subtraction   	= new FunctionWrapper((p: List[Any]) =>p(0).asInstanceOf[Int] - p(1).asInstanceOf[Int], 2, "-")
-  val multiplication  	= new FunctionWrapper((p: List[Any]) =>p(0).asInstanceOf[Int] * p(1).asInstanceOf[Int], 2, "*")
-  val division    		= new FunctionWrapper((p: List[Any]) => if (p(1).asInstanceOf[Int] == 0) 0 else p(0).asInstanceOf[Int] / p(1).asInstanceOf[Int], 2, "/")
-  val ifX       		= new FunctionWrapper((p: List[Any]) => if (p(0).asInstanceOf[Int] > 0) p(1).asInstanceOf[Int] else p(2).asInstanceOf[Int], 3, "if")
-  val isGreater   		= new FunctionWrapper((p: List[Any]) => if (p(0).asInstanceOf[Int] > p(1).asInstanceOf[Int]) 1 else 0, 2, ">")
-  val isEqual     		= new FunctionWrapper((p: List[Any]) => if (p(0).asInstanceOf[Int] == p(1).asInstanceOf[Int]) 1 else 0, 2, "==")
+  val addition        = new FunctionWrapper((p: List[Any]) =>p(0).asInstanceOf[Int] + p(1).asInstanceOf[Int], 2, "+")
+  val subtraction     = new FunctionWrapper((p: List[Any]) =>p(0).asInstanceOf[Int] - p(1).asInstanceOf[Int], 2, "-")
+  val multiplication    = new FunctionWrapper((p: List[Any]) =>p(0).asInstanceOf[Int] * p(1).asInstanceOf[Int], 2, "*")
+  val division        = new FunctionWrapper((p: List[Any]) => if (p(1).asInstanceOf[Int] == 0) 0 else p(0).asInstanceOf[Int] / p(1).asInstanceOf[Int], 2, "/")
+  val ifX           = new FunctionWrapper((p: List[Any]) => if (p(0).asInstanceOf[Int] > 0) p(1).asInstanceOf[Int] else p(2).asInstanceOf[Int], 3, "if")
+  val isGreater       = new FunctionWrapper((p: List[Any]) => if (p(0).asInstanceOf[Int] > p(1).asInstanceOf[Int]) 1 else 0, 2, ">")
+  val isEqual         = new FunctionWrapper((p: List[Any]) => if (p(0).asInstanceOf[Int] == p(1).asInstanceOf[Int]) 1 else 0, 2, "==")
 
 
   // List of possible functions
-  val functionList = List (addition, subtraction, multiplication, ifX, isGreater, isEqual)
+  val functionList = List (addition, subtraction, multiplication, division, ifX, isGreater, isEqual)
 
 
   // Abstract because we will be creating a recursive structure on Child Class FunctionNode
@@ -142,13 +151,13 @@ object genetic
 
   class SyntaxTree
   (
-    val numParam: Int,                    					// maximum list index to go upto
-    val funcList: List[FunctionWrapper] = functionList,   	// predefined set of functions to use
-    val maxDepth: Int = 3,                  				// initial tree maximum depth
-    val prFunc: Float = 0.5f,                 				// Prob of getting a function node
-    val prParam: Float = 0.6f,                				// Prob of getting a terminal node
-    val constFunc: ()=>Any=()=>util.Random.nextInt(10),   	// set of constants (between 0 and 100)
-    var root: Node = null                   				// starting
+    val numParam: Int,                              // maximum list index to go upto
+    val funcList: List[FunctionWrapper] = functionList,     // predefined set of functions to use
+    val maxDepth: Int = 10,                          // initial tree maximum depth
+    val prFunc: Float = 0.4f,                         // Prob of getting a function node
+    val prParam: Float = 0.6f,                        // Prob of getting a terminal node
+    val constFunc: ()=>Any=()=>util.Random.nextInt(10),     // set of constants (between 0 and 100)
+    var root: Node = null                           // starting
   ) 
   {
 
@@ -161,7 +170,7 @@ object genetic
       // create a random syntax tree comprising of functions and constants and params
       def get_random_tree(depth: Int=0, isThisRoot: Boolean=true): Node = {
 
-        // get a random number (used for stochastic calculations) 
+        // get a random number (used for stochasftic calculations) 
         val roll = util.Random.nextFloat()
 
         if (isThisRoot || ((roll < prFunc) && (depth < maxDepth))) {
@@ -169,7 +178,7 @@ object genetic
             // get a random function from funcList
             val newfunc = selectAny(funcList)
 
-            // Recusively create children subtrees.
+            // Recursively create children subtrees.
             var children = for (i <- 1 to newfunc.myInputParamCount)
                               yield get_random_tree(depth+1,false)
 
@@ -203,7 +212,7 @@ object genetic
     // ***** Function can mutate multiple children nodes ******
     // as of now the mutation is dumb as does not consider arity of the function etc.
       def subMutate(subtree: Node, probMut: Float=0.1f, depth: Int=0): Node = {
-      	val t = subtree.copy
+        val t = subtree.copy
         if (util.Random.nextFloat() < probMut) {
           // Return a brand new subtree.
           get_random_tree(depth)
@@ -239,9 +248,9 @@ object genetic
       }
 
       def subCrossBreed(thisroot: Node, otherroot: Node, probCross: Float=0.7f, atroot: Boolean=true): Node = {
-      	val t1 = thisroot.copy
-      	val t2 = otherroot.copy
-      	
+        val t1 = thisroot.copy
+        val t2 = otherroot.copy
+        
         if ((!atroot) && (util.Random.nextFloat() < probCross)) {
           t2
         } 
@@ -262,7 +271,7 @@ object genetic
 
       def scoreAgainstData(data: List[List[Any]]): Int = {
         val scores = for (v <- data) yield score(v)
-        (scores.sum/data.length).toInt
+        (scores.sum).toInt
       }
 
       def score(v: List[Any]): Int= {
@@ -318,7 +327,7 @@ object genetic
     numParam: Int,
     funcList: List[FunctionWrapper] = functionList,
     maxDepth: Int = 4,
-    prFunc:   Float = 0.5f,
+    prFunc:   Float = 0.4f,
     prParam:  Float = 0.6f,
     constFunc: ()=>Any=()=>util.Random.nextInt(10)
     ): List[SyntaxTree] = {
@@ -343,7 +352,7 @@ object genetic
 
   // For Integer Overflow shit
   def newAbs(i: Int): Int = {
-  	if (i < 0 ) Integer.MAX_VALUE else i
+    if (i < 0 ) Integer.MAX_VALUE else i
   }
 
 
@@ -374,14 +383,12 @@ object genetic
     // Population to be returned
     val newPopulation = new Array[SyntaxTree](populationSize) // scala.collection.mutable.MutableList[SyntaxTree]
 
-	newPopulation(0) =  sortedTreeScores(0) //.asInstanceOf[SyntaxTree].clone().asInstanceOf[SyntaxTree]
-	newPopulation(1) =  sortedTreeScores(1)// .asInstanceOf[SyntaxTree].clone().asInstanceOf[SyntaxTree]
-	newPopulation(2) =  sortedTreeScores(2)// .asInstanceOf[SyntaxTree].clone().asInstanceOf[SyntaxTree]
+    // Elitism
+    newPopulation(0) =  sortedTreeScores(0) //.asInstanceOf[SyntaxTree].clone().asInstanceOf[SyntaxTree]
+    newPopulation(1) =  sortedTreeScores(1)// .asInstanceOf[SyntaxTree].clone().asInstanceOf[SyntaxTree]
+ 
+    var i: Int = 2
 
-    var i: Int = 3
-
-    // Elitism: Top 2 performers always make it to the new generation
-    //if (newPopulation.isEmpty) newPopulation ++= sortedTreeScores.take(2)
 
     // println("\nAfter Elite")
     // newPopulation.map(_.flat)
@@ -396,6 +403,10 @@ object genetic
         {
           val tree1 = sortedTreeScores(selectindex(probexp, populationSize))
           val tree2 = sortedTreeScores(selectindex(probexp, populationSize))
+          
+          // val tree1 = selectAny(sortedTreeScores)
+          // val tree2 = selectAny(sortedTreeScores)
+
           
           // evolutionary roulette wheel to crossover & mutate
           val nextTree = tree1.crossbreed(tree2.root, breedingrate).mutate(mutationrate)
@@ -414,23 +425,32 @@ object genetic
   }
 
 
-
+  var bestModelScore: Int = 0
 
   // start making generation after generations starting from initial population
   def evolve
   (
-    population    	: List[SyntaxTree],
+    population      : List[SyntaxTree],
     populationSize  : Int,
-    paramCount    	: Int,
-    numgen      	: Int,
-    data      		: List[List[Int]],
-    gen       		: Int=1
+    paramCount      : Int,
+    numgen        : Int,
+    data          : List[List[Int]],
+    gen           : Int=1
   ):(SyntaxTree,Int)= {
 
     val score = scorePopulation(population, data).sortBy(x=>newAbs(x._2.asInstanceOf[Int]))
     val thisBest = score.head
-
+    
     println(gen + "\t:\t" + thisBest._2)
+    
+    // Display the tree if best score changes
+    if (bestModelScore != thisBest._2.toInt){
+      println("")
+      thisBest._1.display
+      println("")
+    }
+    bestModelScore = thisBest._2.toInt
+    // ---------------------------------------
     
     // if we have reached our goal 
     // Objectives : Either fitness reaches 0 or all generations are exhausted
@@ -450,14 +470,15 @@ object genetic
   def hiddenFunction(): List[Int] = {
       val x = util.Random.nextInt(21)
       val y = util.Random.nextInt(21)
-      val z = x + y*y
+      val z = x*y*x+y*y
       List(x,y,z)
   } 
 
   def buildRandomDataset(numRows:Int): List[List[Int]] = {
-    val data = for (i <- (0 to numRows-1).toList) 
-          yield hiddenFunction()
-    data.asInstanceOf[List[List[Int]]]
+    //val data = for (i <- (0 to numRows-1).toList) 
+    //      yield hiddenFunction()
+    //data.asInstanceOf[List[List[Int]]]
+    Source.fromFile("Data.txt").getLines().map(_.split(",").toList).map(x=>List(x(0).toInt,x(1).toInt,x(2).toInt,x(3).toInt,x(4).toInt,x(5).toInt).toList).toList
     
   }
   /*****************************************************************/
@@ -466,15 +487,15 @@ object genetic
   {
     // data to be tested upon
     val testdata = buildRandomDataset(50)
-
-    val populationSize = 200
-    val paramCount = 2
+    println(testdata)
+    val populationSize = 100
+    val paramCount = 5
     
     // first population
     val firstPopulation = generateFirstPopulation(populationSize,paramCount)
       
       // start evolving (upto 50 generations)
-    val finalPair =  evolve(firstPopulation, populationSize, paramCount, 50000, testdata)
+    val finalPair =  evolve(firstPopulation, populationSize, paramCount, 5000, testdata)
 
     println("Best Tree Ever with Score of " + finalPair._2)
     finalPair._1.display()
